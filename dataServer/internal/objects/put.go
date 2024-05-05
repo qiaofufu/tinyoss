@@ -12,6 +12,7 @@ import (
 
 func put(w http.ResponseWriter, r *http.Request) {
 	// Handle the request
+
 	dir := filepath.Join(global.Cfg.Server.BaseDir, "objects")
 	objectName := strings.Split(r.URL.EscapedPath(), "/")[2]
 	f, err := os.Create(filepath.Join(dir, objectName))

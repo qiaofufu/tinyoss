@@ -1,7 +1,7 @@
 package global
 
 import (
-	"github.com/qiaofufu/tinyoss_kernal/dataServer/configs"
+	"github.com/qiaofufu/tinyoss_kernal/apiServer/configs"
 	"log"
 	"os"
 )

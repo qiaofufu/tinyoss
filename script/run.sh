@@ -1,0 +1,6 @@
+go run ../cmd/api/main.go -p 8000 && echo "Server started on port 8000"
+go run ../cmd/api/main.go -p 8001 && echo "Server started on port 8001"
+go run ../cmd/api/main.go -p 8002 && echo "Server started on port 8002"
+go run ../cmd/data/main.go -p 9000 && echo "Data server started on port 9000"
+go run ../cmd/data/main.go -p 9001 && echo "Data server started on port 9001"
+go run ../cmd/data/main.go -p 9002 && echo "Data server started on port 9002"

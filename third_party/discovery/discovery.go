@@ -3,10 +3,10 @@ package discovery
 import (
 	"context"
 	"fmt"
-	"github.com/qiaofufu/tinyoss_kernal/dataServer/internal/global"
 	etcdClientv3 "go.etcd.io/etcd/client/v3"
 	"log"
 	"sync"
+	"time"
 )
 
 type Discovery struct {
@@ -27,7 +27,22 @@ func NewRecovery(etcd *etcdClientv3.Client, ip string, port int32) *Discovery {
 }
 
 func (r *Discovery) Discovery(prefix string) {
+	r.serverMutex.Lock()
+	if _, ok := r.servers[prefix]; !ok {
+		r.servers[prefix] = make(map[string]any)
+	}
+	r.serverMutex.Unlock()
+	log.Printf("discovery prefix: %s, key: %s", prefix, fmt.Sprintf("/%s/", prefix))
 	serverChan := r.etcd.Watch(context.Background(), fmt.Sprintf("/%s/", prefix), etcdClientv3.WithPrefix())
+	resp, err := r.etcd.Get(context.Background(), fmt.Sprintf("/%s/", prefix), etcdClientv3.WithPrefix())
+	if err != nil {
+		log.Fatal(err)
+		return
+
+	}
+	for _, kv := range resp.Kvs {
+		r.addServer(prefix, string(kv.Key), string(kv.Value))
+	}
 	for resp := range serverChan {
 		for _, ev := range resp.Events {
 			switch ev.Type {
@@ -41,8 +56,9 @@ func (r *Discovery) Discovery(prefix string) {
 }
 
 func (r *Discovery) Register(prefix string) {
+	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	// Grant lease
-	lease, err := r.etcd.Grant(context.Background(), 5)
+	lease, err := r.etcd.Grant(ctx, 5)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -54,7 +70,8 @@ func (r *Discovery) Register(prefix string) {
 	// Register service
 	key := fmt.Sprintf("/%s/%s:%d", prefix, r.ip, r.port)
 	value := fmt.Sprintf("%s:%d", r.ip, r.port)
-	put, err := global.Etcd.Put(context.Background(), key, value, etcdClientv3.WithLease(lease.ID))
+	log.Printf("register key: %s, value: %s", key, value)
+	put, err := r.etcd.Put(context.Background(), key, value, etcdClientv3.WithLease(lease.ID))
 	if err != nil {
 		log.Fatal(put)
 		return
@@ -73,10 +90,9 @@ func (r *Discovery) Register(prefix string) {
 func (r *Discovery) addServer(prefix, key, value string) {
 	r.serverMutex.Lock()
 	defer r.serverMutex.Unlock()
-	if _, ok := r.servers[key]; !ok {
-		r.servers[key] = make(map[string]any)
-	}
+	log.Printf("add server prefix: %s, key: %s, value: %s", prefix, key, value)
 	r.servers[prefix][key] = value
+
 }
 
 func (r *Discovery) removeServer(prefix, key string) {
@@ -84,8 +100,11 @@ func (r *Discovery) removeServer(prefix, key string) {
 	defer r.serverMutex.Unlock()
 	if _, ok := r.servers[prefix]; ok {
 		delete(r.servers[prefix], key)
-		if len(r.servers[prefix]) == 0 {
-			delete(r.servers, prefix)
-		}
 	}
+}
+
+func (r *Discovery) GetServers(prefix string) map[string]any {
+	r.serverMutex.Lock()
+	defer r.serverMutex.Unlock()
+	return r.servers[prefix]
 }

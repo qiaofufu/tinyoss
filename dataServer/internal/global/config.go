@@ -25,5 +25,10 @@ func initConfig() {
 			log.Println(e)
 			panic(e)
 		}
+		e = os.MkdirAll(Cfg.Server.BaseDir+"/temp", os.ModePerm)
+		if e != nil {
+			log.Println(e)
+			panic(e)
+		}
 	}
 }
