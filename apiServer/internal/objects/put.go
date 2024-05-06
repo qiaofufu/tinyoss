@@ -2,10 +2,11 @@ package objects
 
 import (
 	"fmt"
+	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/global"
 	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/heartbeat"
 	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/locate"
 	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/meta"
-	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/objectstream"
+	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/rs"
 	"github.com/qiaofufu/tinyoss_kernal/third_party/utils"
 	"io"
 	"log"
@@ -43,9 +44,9 @@ func storeObject(r io.Reader, hash string, size int64) error {
 	if exist {
 		return nil
 	}
-	stream := putStream(hash, size)
-	if stream == nil {
-		return fmt.Errorf("no data server available")
+	stream, err := putStream(hash, size)
+	if err != nil {
+		return err
 	}
 	reader := io.TeeReader(r, stream)
 	res := utils.Checksum(reader)
@@ -59,11 +60,11 @@ func storeObject(r io.Reader, hash string, size int64) error {
 	return stream.Commit()
 }
 
-func putStream(objectName string, size int64) *objectstream.TempObjectStream {
-	server := heartbeat.ChooseRandomDataServer()
-	if server == "" {
-		log.Println("No data server available")
-		return nil
+func putStream(objectName string, size int64) (*rs.PutStream, error) {
+	servers := heartbeat.ChooseRandomDataServer(global.Cfg.RS.ShardAllNum, nil)
+	if len(servers) != global.Cfg.RS.ShardAllNum {
+		return nil, fmt.Errorf("no enough data server available")
 	}
-	return objectstream.NewTempObjectStream(server, objectName, size)
+
+	return rs.NewPutStream(servers, objectName, size)
 }

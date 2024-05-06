@@ -1,6 +1,7 @@
 package temp
 
 import (
+	"fmt"
 	"github.com/google/uuid"
 	"github.com/qiaofufu/tinyoss_kernal/dataServer/internal/global"
 	"github.com/qiaofufu/tinyoss_kernal/dataServer/internal/locate"
@@ -10,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -78,7 +80,7 @@ func commitTempObject(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	locate.Add(i.Hash)
+	locate.Add(fmt.Sprintf("%s.%d", i.Hash, i.Id))
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -123,9 +125,16 @@ func createTempObject(w http.ResponseWriter, r *http.Request) {
 	size := utils.GetSizeFromHeader(r)
 	name := strings.Split(r.URL.EscapedPath(), "/")[2]
 	uid := uuid.New().String()
-	i := info{name, size, uid}
-	err := i.writeToFile()
+	temp := strings.Split(name, ".")
+	hash := temp[0]
+	id, err := strconv.Atoi(temp[1])
 	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	i := info{hash, size, uid, id}
+	if err = i.writeToFile(); err != nil {
 		log.Println(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

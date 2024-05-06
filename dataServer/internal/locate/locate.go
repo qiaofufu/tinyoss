@@ -58,11 +58,12 @@ func Load() {
 	}
 }
 
-func Add(hash string) {
+func Add(key string) {
 	mu.Lock()
 	defer mu.Unlock()
-	objects[hash] = struct{}{}
+	objects[key] = struct{}{}
 }
+
 func Del(hash string) {
 	mu.Lock()
 	defer mu.Unlock()

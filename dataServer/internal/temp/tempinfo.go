@@ -11,6 +11,7 @@ type info struct {
 	Hash string
 	Size int64
 	Uuid string
+	Id   int
 }
 
 func (i *info) writeToFile() error {

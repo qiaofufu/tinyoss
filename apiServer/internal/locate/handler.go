@@ -1,6 +1,7 @@
 package locate
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 	"strings"
@@ -19,10 +20,10 @@ func Handler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if info == "" {
+	if len(info) == 0 {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	_, _ = w.Write([]byte(info))
+	_ = json.NewEncoder(w).Encode(info)
 	w.WriteHeader(http.StatusOK)
 }

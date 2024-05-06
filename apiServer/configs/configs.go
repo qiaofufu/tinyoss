@@ -5,6 +5,14 @@ import "flag"
 type Configs struct {
 	Server
 	Etcd
+	RS
+}
+
+type RS struct {
+	ShardAllNum int
+	DataShard   int
+	ParityShard int
+	BlockSize   int
 }
 
 type Server struct {
@@ -36,4 +44,7 @@ func (c *Configs) Load() {
 	c.Server.LocateTimeout = 2
 	c.Etcd.Endpoints = []string{"http://162.14.115.114:2379"}
 	c.Etcd.DialTimeout = 5
+	c.ShardAllNum = 6
+	c.DataShard = 4
+	c.ParityShard = 2
 }

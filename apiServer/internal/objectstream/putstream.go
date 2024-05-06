@@ -15,10 +15,9 @@ type TempObjectStream struct {
 	hash   string
 }
 
-func NewTempObjectStream(server, hash string, size int64) *TempObjectStream {
+func NewTempObjectStream(server, hash string, size int64) (*TempObjectStream, error) {
 	p := &TempObjectStream{size: size, server: server, hash: hash}
-	_ = p.createTemp()
-	return p
+	return p, p.createTemp()
 }
 
 func (w *TempObjectStream) Write(p []byte) (n int, err error) {

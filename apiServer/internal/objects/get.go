@@ -1,9 +1,12 @@
 package objects
 
 import (
+	"fmt"
+	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/global"
+	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/heartbeat"
 	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/locate"
 	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/meta"
-	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/objectstream"
+	"github.com/qiaofufu/tinyoss_kernal/apiServer/internal/rs"
 	"io"
 	"log"
 	"net/http"
@@ -40,19 +43,36 @@ func get(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	stream, err := getStream(url.PathEscape(objectMeta.Hash))
+	stream, err := getStream(url.PathEscape(objectMeta.Hash), objectMeta.Size)
 	if err != nil {
 		log.Println(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
-	_, _ = io.Copy(w, stream)
+	_, err = io.Copy(w, stream)
+	if err != nil {
+		log.Println(err)
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
 }
 
-func getStream(objectName string) (io.Reader, error) {
-	server, err := locate.LocateFromAllServer(objectName)
+func getStream(hash string, size int64) (io.Reader, error) {
+	servers, err := locate.LocateFromAllServer(hash)
 	if err != nil {
 		return nil, err
 	}
-	return objectstream.NewGetStream(server, objectName)
+	if len(servers) < global.Cfg.RS.DataShard {
+		return nil, fmt.Errorf("can't find enough data server")
+	}
+	excludeServers := make(map[string]struct{})
+	for i := range servers {
+		excludeServers[servers[i]] = struct{}{}
+	}
+	ds := make([]string, 0)
+	if len(servers) < global.Cfg.RS.ShardAllNum {
+		ds = heartbeat.ChooseRandomDataServer(global.Cfg.RS.ShardAllNum-len(servers), excludeServers)
+	}
+
+	return rs.NewGetStream(servers, ds, hash, size)
 }
